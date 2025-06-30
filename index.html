@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>讓我幫您 Google，查核 AI 的答案</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #1c1e21;
+        }
+        p {
+            font-size: 16px;
+            color: #606770;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        #search-query {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 1px solid #ccd0d5;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        #search-query:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        .button {
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            text-decoration: none;
+            color: white;
+            display: inline-block;
+        }
+        .button:active {
+            transform: scale(0.98);
+        }
+        .generate-btn {
+            background-color: #007bff;
+        }
+        .generate-btn:hover {
+            background-color: #0069d9;
+        }
+        #result {
+            margin-top: 30px;
+            word-wrap: break-word;
+            display: none;
+        }
+        #result-link-container {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        #result-link {
+            padding: 12px 15px;
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            display: block;
+            text-decoration: none;
+            color: #007bff;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #copy-button {
+            background-color: #28a745;
+            width: 100%;
+        }
+        #copy-button:hover {
+            background-color: #218838;
+        }
+
+        /* Styles for the animation page */
+        #animation-page {
+            position: relative;
+            display: none; 
+            width: 100%; 
+            height: 100vh; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            background-color: white;
+        }
+        #animation-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #google-logo {
+            width: 272px;
+            height: 92px;
+            background: url('https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png') no-repeat center;
+            background-size: contain;
+            margin-bottom: 20px;
+        }
+        #search-bar-wrapper {
+            width: 90%;
+            max-width: 584px;
+            /* [修正] margin-bottom 減少，為按鈕留出空間 */
+            margin-bottom: 20px; 
+        }
+        #animated-input {
+            width: 100%;
+            height: 44px;
+            padding: 0 45px;
+            font-size: 16px;
+            border-radius: 24px;
+            border: 1px solid #dfe1e5;
+            box-sizing: border-box;
+            background-color: white;
+        }
+        /* [新增] 按鈕容器的樣式 */
+        #animation-buttons-container {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        /* [新增] 動畫頁面按鈕的樣式 */
+        .anim-button {
+            background-color: #f8f9fa;
+            border: 1px solid #f8f9fa;
+            border-radius: 4px;
+            color: #3c4043;
+            font-size: 14px;
+            padding: 0 16px;
+            height: 36px;
+            min-width: 54px;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        /* [新增] 按鈕被"點擊"時的樣式 */
+        .anim-button.clicked {
+            border-color: #dfe1e5;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+        #mouse-pointer {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            background: url('cursor.svg') no-repeat;
+            background-size: contain;
+            z-index: 100;
+            /* 預設速度 */
+            transition: top 1s ease-in-out, left 1s ease-in-out; 
+            opacity: 0;
+            transform-origin: top left;
+            pointer-events: none;
+        }
+        #animation-message {
+            font-size: 18px;
+            color: #666;
+            height: 25px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="main-container">
+        <h1>Let Me Google That For You...</h1>
+        <p>讓我幫你用Google做事實查核</p>
+        <div class="input-group">
+            <input type="text" id="search-query" placeholder="輸入要查核的 AI 回應關鍵字...">
+            <button id="generate-btn" class="button generate-btn">產生查核連結</button>
+        </div>
+        <div id="result">
+            <div id="result-link-container">
+                <a href="#" id="result-link" target="_blank"></a>
+            </div>
+            <button id="copy-button" class="button">複製連結</button>
+        </div>
+    </div>
+
+    <div id="animation-page">
+        <div id="animation-container">
+            <div id="google-logo"></div>
+            <div id="search-bar-wrapper">
+                <input type="text" id="animated-input" value="" readonly>
+            </div>
+            <div id="animation-buttons-container">
+                <button id="google-search-btn" class="anim-button">Google 搜尋</button>
+                <button id="lucky-btn" class="anim-button">好手氣</button>
+            </div>
+            <p id="animation-message"></p>
+        </div>
+        <div id="mouse-pointer"></div>
+    </div>
+
+    <script>
+        const mainContainer = document.getElementById('main-container');
+        const animationPage = document.getElementById('animation-page');
+        const animatedInput = document.getElementById('animated-input');
+        const animationMessage = document.getElementById('animation-message');
+        const mousePointer = document.getElementById('mouse-pointer');
+        const googleSearchBtn = document.getElementById('google-search-btn');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const query = urlParams.get('q');
+
+        if (query) {
+            // --- ANIMATION LOGIC ---
+            mainContainer.style.display = 'none';
+            animationPage.style.display = 'flex';
+
+            const decodedQuery = decodeURIComponent(query);
+            let charIndex = 0;
+
+            const typeText = () => {
+                if (charIndex < decodedQuery.length) {
+                    animatedInput.value += decodedQuery.charAt(charIndex);
+                    charIndex++;
+                    setTimeout(typeText, 100 + Math.random() * 50);
+                } else {
+                    // 打字結束後，移至下一步：移動到搜尋按鈕
+                    setTimeout(moveToSearchButton, 500);
+                }
+            };
+            
+            // [新增] 移動到搜尋按鈕的函式
+            const moveToSearchButton = () => {
+                animationMessage.textContent = ''; // 清空訊息
+                const btnRect = googleSearchBtn.getBoundingClientRect();
+                const pageRect = animationPage.getBoundingClientRect();
+                
+                // 計算目標位置
+                const targetLeft = btnRect.left - pageRect.left + (btnRect.width / 2);
+                const targetTop = btnRect.top - pageRect.top + (btnRect.height / 2);
+
+                // 設定 0.5 倍速 (時間加倍)
+                mousePointer.style.transition = 'top 2s ease-in-out, left 2s ease-in-out';
+                mousePointer.style.left = targetLeft + 'px';
+                mousePointer.style.top = targetTop + 'px';
+
+                // 移動完成後，點擊按鈕
+                setTimeout(clickSearchButton, 2200); // 應大於動畫時間 2s
+            };
+
+            // [新增] 點擊搜尋按鈕的函式
+            const clickSearchButton = () => {
+                // 增加 "clicked" class 來改變按鈕樣式
+                googleSearchBtn.classList.add('clicked');
+                // 顯示完成訊息並準備跳轉
+                setTimeout(showCompletionMessage, 250); // 短暫延遲後顯示文字
+            };
+
+            // [新增] 顯示完成訊息並跳轉的函式
+            const showCompletionMessage = () => {
+                animationMessage.textContent = '搞定！做事實查核很難嗎?';
+                setTimeout(() => {
+                    window.location.href = `https://www.google.com/search?q=${encodeURIComponent(decodedQuery)}`;
+                }, 2000);
+            };
+
+            // [修改] 初始動畫流程
+            setTimeout(() => {
+                mousePointer.style.transition = 'none';
+                mousePointer.style.left = '20px';
+                mousePointer.style.top = '20px';
+                mousePointer.style.opacity = '1';
+                
+                setTimeout(() => {
+                    animationMessage.textContent = '首先，移動滑鼠到搜尋框...';
+                    
+                    const inputRect = animatedInput.getBoundingClientRect();
+                    const pageRect = animationPage.getBoundingClientRect();
+                    const targetLeft = inputRect.left - pageRect.left + 20;
+                    const targetTop = inputRect.top - pageRect.top + (inputRect.height / 2) - (mousePointer.offsetHeight / 2);
+
+                    // 恢復正常速度
+                    mousePointer.style.transition = 'top 1s ease-in-out, left 1s ease-in-out';
+                    mousePointer.style.left = targetLeft + 'px';
+                    mousePointer.style.top = targetTop + 'px';
+
+                    setTimeout(() => {
+                        animationMessage.textContent = '然後，輸入您的問題...';
+                        typeText(); // 開始打字
+                    }, 1200);
+
+                }, 100);
+
+            }, 500);
+
+        } else {
+            // --- MAIN PAGE LOGIC (無變動) ---
+            const generateBtn = document.getElementById('generate-btn');
+            const searchInput = document.getElementById('search-query');
+            const resultDiv = document.getElementById('result');
+            const resultLink = document.getElementById('result-link');
+            const copyBtn = document.getElementById('copy-button');
+
+            const generateLink = () => {
+                const searchQuery = searchInput.value.trim();
+                if (searchQuery) {
+                    const encodedQuery = encodeURIComponent(searchQuery);
+                    const baseUrl = window.location.origin === 'null' ? window.location.pathname : window.location.href.split('?')[0];
+                    const generatedUrl = `${baseUrl}?q=${encodedQuery}`;
+                    
+                    resultLink.href = generatedUrl;
+                    resultLink.textContent = generatedUrl;
+                    resultDiv.style.display = 'block';
+                    copyBtn.textContent = '複製連結';
+                } else {
+                    resultDiv.style.display = 'none';
+                }
+            };
+
+            generateBtn.addEventListener('click', generateLink);
+            
+            searchInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    generateLink();
+                }
+            });
+
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(resultLink.href).then(() => {
+                    copyBtn.textContent = '已複製！';
+                }).catch(err => {
+                    console.error('無法複製連結: ', err);
+                    copyBtn.textContent = '複製失敗';
+                });
+            });
+        }
+    </script>
+
+</body>
+</html>
